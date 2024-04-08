@@ -20,6 +20,21 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     """ """
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
 
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        greenPotionCount = 0
+        for potion in potions_delivered:
+            if potion.potion_type[1] == 100:
+                greenPotionCount = potion.quantity
+        if greenPotionCount != 0:
+            for row in result:
+                greenMl = row[1] - (greenPotionCount * 100)
+                newGreenPotionCount = greenPotionCount+row[0]
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_potions = :newGreenPotionCount")
+                connection.execute(update_query, {"newGreenPotionCount": newGreenPotionCount})
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :greenMl")
+                connection.execute(update_query, {"greenMl": greenMl})
+
     return "OK"
 
 @router.post("/plan")
@@ -40,18 +55,14 @@ def get_bottle_plan():
         for row in result:
             greenMl = row[1]
             greenPotionCount = 0
-            while greenMl >= 10:
+            while greenMl >= 100:
                 returnValue["potion_type"] = [0,100,0,0]
-                greenMl -= 10
+                greenMl -= 100
                 greenPotionCount += 1
             if greenPotionCount != 0:
                 returnValue["quantity"] = greenPotionCount
-                newGreenPotionCount = greenPotionCount+row[0]
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_potions = :newGreenPotionCount")
-                connection.execute(update_query, {"newGreenPotionCount": newGreenPotionCount})
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :greenMl")
-                connection.execute(update_query, {"greenMl": greenMl})
-                
+            else:
+                returnValue = {}   
 
     return [
             returnValue
