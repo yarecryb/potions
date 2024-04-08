@@ -4,21 +4,25 @@ from src import database as db
 
 router = APIRouter()
 
-# with db.engine.begin() as connection:
-#     result = connection.execute(sqlalchemy.text(sql_to_execute))
 
 @router.get("/catalog/", tags=["catalog"])
 def get_catalog():
     """
     Each unique item combination must have only a single price.
     """
+    returnValue = {}
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        for row in result:
+            greenPotions = row[0]
+            returnValue = {
+                "sku": "GREEN_POTION_0",
+                "name": "green potion",
+                "quantity": greenPotions,
+                "price": 50,
+                "potion_type": [0,100,0,0],
+            }
 
     return [
-            {
-                "sku": "RED_POTION_0",
-                "name": "red potion",
-                "quantity": 1,
-                "price": 50,
-                "potion_type": [100, 0, 0, 0],
-            }
+            returnValue
         ]

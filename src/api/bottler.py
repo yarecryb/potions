@@ -11,9 +11,6 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-# with db.engine.begin() as connection:
-#     result = connection.execute(sqlalchemy.text(sql_to_execute))
-
 class PotionInventory(BaseModel):
     potion_type: list[int]
     quantity: int
@@ -35,13 +32,29 @@ def get_bottle_plan():
     # green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
-    # Initial logic: bottle all barrels into red potions.
+    # Initial logic: bottle all barrels into green potions.
+    returnValue = {}
+    #bottle small green postions
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        for row in result:
+            greenMl = row[1]
+            greenPotionCount = 0
+            while greenMl >= 10:
+                returnValue["potion_type"] = [0,100,0,0]
+                greenMl -= 10
+                greenPotionCount += 1
+            if greenPotionCount != 0:
+                returnValue["quantity"] = greenPotionCount
+                newGreenPotionCount = greenPotionCount+row[0]
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_potions = :newGreenPotionCount")
+                connection.execute(update_query, {"newGreenPotionCount": newGreenPotionCount})
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :greenMl")
+                connection.execute(update_query, {"greenMl": greenMl})
+                
 
     return [
-            {
-                "potion_type": [100, 0, 0, 0],
-                "quantity": 5,
-            }
+            returnValue
         ]
 
 if __name__ == "__main__":
