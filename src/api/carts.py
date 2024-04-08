@@ -11,8 +11,6 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-# with db.engine.begin() as connection:
-#     result = connection.execute(sqlalchemy.text(sql_to_execute))
 
 class search_sort_options(str, Enum):
     customer_name = "customer_name"
@@ -86,11 +84,21 @@ def post_visits(visit_id: int, customers: list[Customer]):
 
     return "OK"
 
+carts = []
+cartId = 0
 
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
-    return {"cart_id": 1}
+    global cartId
+    # array of item sku, array of quantities
+    cart = {
+        "items": [],
+        "quantities": [],
+    }
+    carts.append(cart)
+    cartId += 1
+    return {"cart_id": cartId}
 
 
 class CartItem(BaseModel):
@@ -100,7 +108,8 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
-
+    carts[cart_id-1]["items"].append(item_sku)
+    carts[cart_id-1]["quantities"].append(cart_item.quantity)
     return "OK"
 
 
@@ -110,5 +119,21 @@ class CartCheckout(BaseModel):
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
+    total_potions_bought = 0
+    total_gold_paid = 0
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        for row in result:
+            cart = carts[cart_id-1]
+            potion_count = cart["quantities"][cart_id-1]
+            if row[0] >= potion_count:
+                total_potions_bought = potion_count
+                new_potion_count = row[0] - potion_count
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_potions = :new_potion_count")
+                connection.execute(update_query, {"new_potion_count": new_potion_count})
+                total_gold_paid = int(cart_checkout.payment)
+                new_gold_amount = row[2] + total_gold_paid
+                update_query = sqlalchemy.text("UPDATE global_inventory SET gold = :new_gold_amount")
+                connection.execute(update_query, {"new_gold_amount": new_gold_amount})
 
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
