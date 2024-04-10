@@ -11,6 +11,7 @@ def get_catalog():
     Each unique item combination must have only a single price.
     """
     returnValue = {}
+    greenPotionCount = 0
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         for row in result:
@@ -22,7 +23,9 @@ def get_catalog():
                 "price": 10,
                 "potion_type": [0,100,0,0],
             }
-
-    return [
-            returnValue
-        ]
+    if greenPotionCount == 0:
+        return []
+    else:
+        return [
+                returnValue
+            ]
