@@ -62,7 +62,7 @@ def get_bottle_plan():
             if greenPotionCount != 0:
                 returnValue["quantity"] = greenPotionCount
             else:
-                returnValue = {}   
+                return [] 
 
     return [
             returnValue

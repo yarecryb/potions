@@ -63,6 +63,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 if itemToBuy and row[2] > int(itemToBuy.price):
                     returnValue["sku"] = itemToBuy.sku
                     returnValue["quantity"] = 1
+            else:
+                return []
 
     return [
         returnValue
