@@ -110,6 +110,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
     carts[cart_id-1]["items"].append(item_sku)
     carts[cart_id-1]["quantities"].append(cart_item.quantity)
+    print(carts)
     return "OK"
 
 
@@ -126,7 +127,27 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         for row in result:
             cart = carts[cart_id-1]
             potion_count = cart["quantities"][cart_id-1]
-            if row[0] >= potion_count:
+            sku = cart["items"][cart_id-1]
+            print(sku)
+            if sku == "RED_POTION_0":
+                total_potions_bought = potion_count
+                new_potion_count = row[3] - potion_count
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_potions = :new_potion_count")
+                connection.execute(update_query, {"new_potion_count": new_potion_count})
+                total_gold_paid = int(cart_checkout.payment)
+                new_gold_amount = row[2] + total_gold_paid
+                update_query = sqlalchemy.text("UPDATE global_inventory SET gold = :new_gold_amount")
+                connection.execute(update_query, {"new_gold_amount": new_gold_amount})
+            elif sku == "BLUE_POTION_0":
+                total_potions_bought = potion_count
+                new_potion_count = row[5] - potion_count
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_potions = :new_potion_count")
+                connection.execute(update_query, {"new_potion_count": new_potion_count})
+                total_gold_paid = int(cart_checkout.payment)
+                new_gold_amount = row[2] + total_gold_paid
+                update_query = sqlalchemy.text("UPDATE global_inventory SET gold = :new_gold_amount")
+                connection.execute(update_query, {"new_gold_amount": new_gold_amount})
+            elif sku == "GREEN_POTION_0":
                 total_potions_bought = potion_count
                 new_potion_count = row[0] - potion_count
                 update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_potions = :new_potion_count")
@@ -135,5 +156,5 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
                 new_gold_amount = row[2] + total_gold_paid
                 update_query = sqlalchemy.text("UPDATE global_inventory SET gold = :new_gold_amount")
                 connection.execute(update_query, {"new_gold_amount": new_gold_amount})
-
+                
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}

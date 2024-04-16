@@ -23,9 +23,16 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         greenPotionCount = 0
+        redPotionCount = 0
+        bluePotionCount = 0
         for potion in potions_delivered:
             if potion.potion_type[1] == 100:
                 greenPotionCount = potion.quantity
+            elif potion.potion_type[0] == 100:
+                redPotionCount = potion.quantity
+            elif potion.potion_type[2] == 100:
+                bluePotionCount = potion.quantity
+
         if greenPotionCount != 0:
             for row in result:
                 greenMl = row[1] - (greenPotionCount * 100)
@@ -34,7 +41,22 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
                 connection.execute(update_query, {"newGreenPotionCount": newGreenPotionCount})
                 update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :greenMl")
                 connection.execute(update_query, {"greenMl": greenMl})
-
+        elif redPotionCount != 0:
+            for row in result:
+                redMl = row[4] - (redPotionCount * 100)
+                newRedPotionCount = redPotionCount+row[3]
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_potions = :newRedPotionCount")
+                connection.execute(update_query, {"newRedPotionCount": newRedPotionCount})
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_ml = :redMl")
+                connection.execute(update_query, {"redMl": redMl})
+        elif bluePotionCount != 0:
+            for row in result:
+                blueMl = row[6] - (bluePotionCount * 100)
+                newBluePotionCount = bluePotionCount+row[5]
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_potions = :newBluePotionCount")
+                connection.execute(update_query, {"newBluePotionCount": newBluePotionCount})
+                update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = :blueMl")
+                connection.execute(update_query, {"blueMl": blueMl})
     return "OK"
 
 @router.post("/plan")
@@ -54,13 +76,30 @@ def get_bottle_plan():
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         for row in result:
             greenMl = row[1]
+            redMl = row[4]
+            blueMl = row[6]
             greenPotionCount = 0
+            redPotionCount = 0
+            bluePotionCount = 0
             while greenMl >= 100:
                 returnValue["potion_type"] = [0,100,0,0]
                 greenMl -= 100
                 greenPotionCount += 1
+            while redMl >= 100:
+                returnValue["potion_type"] = [100,0,0,0]
+                redMl -= 100
+                redPotionCount += 1
+            while blueMl >= 100:
+                returnValue["potion_type"] = [0,0,100,0]
+                blueMl -= 100
+                bluePotionCount += 1  
+
             if greenPotionCount != 0:
                 returnValue["quantity"] = greenPotionCount
+            elif redPotionCount != 0:
+                returnValue["quantity"] = redPotionCount
+            elif bluePotionCount != 0:
+                returnValue["quantity"] = bluePotionCount
             else:
                 return [] 
 

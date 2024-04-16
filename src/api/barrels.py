@@ -28,19 +28,35 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         for row in result:
             cost = 0
-            boughtMl = 0
+            bought_red_ml = 0
+            bought_green_ml = 0
+            bought_blue_ml = 0
             for item in barrels_delivered:
                 if item.potion_type[1] == 100:
                     cost += item.price * item.quantity
-                    boughtMl += item.ml_per_barrel * item.quantity
-            
+                    bought_green_ml += item.ml_per_barrel * item.quantity
+                elif item.potion_type[0] == 100:
+                    cost += item.price * item.quantity
+                    bought_red_ml += item.ml_per_barrel * item.quantity
+                elif item.potion_type[2] == 100:
+                    cost += item.price * item.quantity
+                    bought_blue_ml += item.ml_per_barrel * item.quantity
+
             newGoldBalance = row[2] - cost
             update_query = sqlalchemy.text("UPDATE global_inventory SET gold = :newGoldBalance")
             connection.execute(update_query, {"newGoldBalance": newGoldBalance})
 
-            newGreenMl = row[1] + boughtMl
+            newGreenMl = row[1] + bought_green_ml
             update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :newGreenMl")
             connection.execute(update_query, {"newGreenMl": newGreenMl})
+
+            newRedMl = row[4] + bought_red_ml
+            update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_ml = :newRedMl")
+            connection.execute(update_query, {"newRedMl": newRedMl})
+
+            newBlueMl = row[6] + bought_blue_ml
+            update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = :newBlueMl")
+            connection.execute(update_query, {"newBlueMl": newBlueMl})
 
     return "OK"
 
@@ -58,7 +74,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             if row[0] < 10:
                 itemToBuy ={}
                 for item in wholesale_catalog:
-                    if item.potion_type[1] == 100:
+                    if item.potion_type[0] == 100 or item.potion_type[1] == 100 or item.potion_type[2] == 100:
                         itemToBuy = item
                 if itemToBuy and row[2] > int(itemToBuy.price):
                     returnValue["sku"] = itemToBuy.sku
