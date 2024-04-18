@@ -32,13 +32,13 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
             bought_green_ml = 0
             bought_blue_ml = 0
             for item in barrels_delivered:
-                if item.potion_type[1] == 100:
+                if item.potion_type[1] == 1:
                     cost += item.price * item.quantity
                     bought_green_ml += item.ml_per_barrel * item.quantity
-                elif item.potion_type[0] == 100:
+                elif item.potion_type[0] == 1:
                     cost += item.price * item.quantity
                     bought_red_ml += item.ml_per_barrel * item.quantity
-                elif item.potion_type[2] == 100:
+                elif item.potion_type[2] == 1:
                     cost += item.price * item.quantity
                     bought_blue_ml += item.ml_per_barrel * item.quantity
 
