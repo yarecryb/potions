@@ -25,39 +25,37 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
     print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        for row in result:
-            cost = 0
-            bought_red_ml = 0
-            bought_green_ml = 0
-            bought_blue_ml = 0
-            for item in barrels_delivered:
-                if item.potion_type[1] == 1:
-                    cost += item.price * item.quantity
-                    bought_green_ml += item.ml_per_barrel * item.quantity
-                elif item.potion_type[0] == 1:
-                    cost += item.price * item.quantity
-                    bought_red_ml += item.ml_per_barrel * item.quantity
-                elif item.potion_type[2] == 1:
-                    cost += item.price * item.quantity
-                    bought_blue_ml += item.ml_per_barrel * item.quantity
+        gold_paid = 0
+        red_ml = 0
+        blue_ml = 0
+        green_ml = 0
+        dark_ml = 0
 
-            newGoldBalance = row[2] - cost
-            update_query = sqlalchemy.text("UPDATE global_inventory SET gold = :newGoldBalance")
-            connection.execute(update_query, {"newGoldBalance": newGoldBalance})
+        for barrel_delivered in barrels_delivered:
+            gold_paid += barrel_delivered.price * barrel_delivered.quantity
+            if barrel_delivered.potion_type == [1,0,0,0]:
+                red_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
+            elif barrel_delivered.potion_type == [0,1,0,0]:
+                green_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
+            elif barrel_delivered.potion_type == [0,0,1,0]:
+                blue_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
+            elif barrel_delivered.potion_type == [0,0,0,1]:
+                dark_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
+            else:
+                raise Exception("Invalid potion type")
 
-            newGreenMl = row[1] + bought_green_ml
-            update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :newGreenMl")
-            connection.execute(update_query, {"newGreenMl": newGreenMl})
-
-            newRedMl = row[4] + bought_red_ml
-            update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_ml = :newRedMl")
-            connection.execute(update_query, {"newRedMl": newRedMl})
-
-            newBlueMl = row[6] + bought_blue_ml
-            update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = :newBlueMl")
-            connection.execute(update_query, {"newBlueMl": newBlueMl})
-
+        connection.execute(
+            sqlalchemy.text(
+                """
+                UPDATE global_inventory SET 
+                red_ml = red_ml + :red_ml,
+                green_ml = green_ml + :green_ml,
+                blue_ml = blue_ml + :blue_ml,
+                dark_ml = dark_ml + :dark_ml,
+                gold = gold - :gold_paid
+                """),
+            [{"red_ml": red_ml, "green_ml": green_ml, "blue_ml": blue_ml, "dark_ml": dark_ml, "gold_paid": gold_paid}])
+        
     return "OK"
 
 # Gets called once a day
@@ -67,24 +65,41 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print(wholesale_catalog)
     returnValue = {}
 
-    # check there are less than 10 potions in inventory
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        for row in result:
-            if row[0] < 10:
-                itemToBuy ={}
-                for item in wholesale_catalog:
-                    if item.potion_type[0] == 100 or item.potion_type[1] == 100 or item.potion_type[2] == 100:
-                        itemToBuy = item
-                if itemToBuy and row[2] > int(itemToBuy.price):
-                    returnValue["sku"] = itemToBuy.sku
-                    returnValue["quantity"] = 1
-                else:
-                    return []
-            else:
-                return []
+        result = connection.execute(sqlalchemy.text("""
+                                                     SELECT
+                                                        green_ml,
+                                                        blue_ml,
+                                                        red_ml,
+                                                        dark_ml,
+                                                        gold,
+                                                        ml_threshold,
+                                                        ml_capacity
+                                                        FROM global_inventory""")).one()
+        
+        ml_inventory = [result.red_ml, result.green_ml, result.blue_ml, result.dark_ml]
+        ml_threshold = result.ml_threshold
+        max_ml = result.ml_capacity
+        current_ml = sum(ml_inventory)
+        gold = result.gold
+        barrel_purchases = []
 
-    return [
-        returnValue
-    ]
+        for i in range(len(ml_inventory)):
+            if ml_inventory[i] < ml_threshold:
+                potion_type = [int(j == i) for j in range(4)]
+                barrel_available = next((item for item in wholesale_catalog if item.potion_type == potion_type), None)
+                if barrel_available is not None:
+                    if barrel_available.price <= gold and barrel_available.ml_per_barrel + current_ml <= max_ml:
+                        price = barrel_available.price
+                        ml_per_barrel = barrel_available.ml_per_barrel
+                        barrel_info = {
+                            "sku": barrel_available.sku,
+                            "quantity": 1
+                        }
+                        barrel_purchases.append(barrel_info)
+                        gold -= price
+                        current_ml += ml_per_barrel
+                
+
+    return barrel_purchases
 

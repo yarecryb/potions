@@ -17,26 +17,37 @@ def reset():
     inventory, and all barrels are removed from inventory. Carts are all reset.
     """
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         update_query = sqlalchemy.text("""
             UPDATE global_inventory
-            SET num_red_ml = :newRedMl,
-            num_red_potions = :newRedPotions,
-            num_blue_ml = :newBlueMl,
-            num_blue_potions = :newBluePotions,
-            num_green_ml = :newGreenMl,
-            num_green_potions = :newGreenPotions,
+            SET red_ml = :newRedMl,
+            blue_ml = :newBlueMl,
+            green_ml = :newGreenMl,
+            dark_ml = :newDarkMl,
+            ml_threshold = :newMlThreshold,
+            ml_capacity = :newMlCapacity,
+            potion_capacity = :newPotionCapacity,
+            potion_count = :newPotionCount,
             gold = :newGold
         """)
 
         connection.execute(update_query, {
             "newRedMl": 0,
-            "newRedPotions": 0,
             "newBlueMl": 0,
-            "newBluePotions": 0,
             "newGreenMl": 0,
-            "newGreenPotions": 0,
+            "newDarkMl": 0,
+            "newMlThreshold": 5000,
+            "newMlCapacity": 10000,
+            "newPotionCapacity": 50,
+            "newPotionCount": 0,
             "newGold": 100
+        })
+
+        query = sqlalchemy.text("""
+            UPDATE potion_types
+            SET quantity = :empty
+        """)
+        connection.execute(query, {
+            "empty": 0
         })
     return "OK"
 

@@ -21,42 +21,20 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
 
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        greenPotionCount = 0
-        redPotionCount = 0
-        bluePotionCount = 0
-        for potion in potions_delivered:
-            if potion.potion_type[1] == 100:
-                greenPotionCount = potion.quantity
-            elif potion.potion_type[0] == 100:
-                redPotionCount = potion.quantity
-            elif potion.potion_type[2] == 100:
-                bluePotionCount = potion.quantity
-
-        if greenPotionCount != 0:
-            for row in result:
-                greenMl = row[1] - (greenPotionCount * 100)
-                newGreenPotionCount = greenPotionCount+row[0]
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_potions = :newGreenPotionCount")
-                connection.execute(update_query, {"newGreenPotionCount": newGreenPotionCount})
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :greenMl")
-                connection.execute(update_query, {"greenMl": greenMl})
-        elif redPotionCount != 0:
-            for row in result:
-                redMl = row[4] - (redPotionCount * 100)
-                newRedPotionCount = redPotionCount+row[3]
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_potions = :newRedPotionCount")
-                connection.execute(update_query, {"newRedPotionCount": newRedPotionCount})
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_red_ml = :redMl")
-                connection.execute(update_query, {"redMl": redMl})
-        elif bluePotionCount != 0:
-            for row in result:
-                blueMl = row[6] - (bluePotionCount * 100)
-                newBluePotionCount = bluePotionCount+row[5]
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_potions = :newBluePotionCount")
-                connection.execute(update_query, {"newBluePotionCount": newBluePotionCount})
-                update_query = sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = :blueMl")
-                connection.execute(update_query, {"blueMl": blueMl})
+        potion_types = connection.execute(sqlalchemy.text("SELECT * FROM potion_types"))
+        for row in potion_types:
+            sku = row.sku
+            current_potion_type = [row.red_ml, row.green_ml, row.blue_ml, row.dark_ml]
+            potion_bottled = next((item for item in potions_delivered if item.potion_type == current_potion_type), None)
+            if potion_bottled is not None:
+                connection.execute(
+                    sqlalchemy.text(
+                        """
+                        UPDATE potion_types SET quantity = quantity + :quantity
+                        WHERE sku = :potion_sku
+                        """), 
+                [{"quantity": potion_bottled.quantity, "potion_sku": sku}])
+                
     return "OK"
 
 @router.post("/plan")
@@ -69,43 +47,46 @@ def get_bottle_plan():
     # green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
-    # Initial logic: bottle all barrels into green potions.
+    # Bottle one of each potion
     returnValue = {}
-    #bottle small green postions
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        for row in result:
-            greenMl = row[1]
-            redMl = row[4]
-            blueMl = row[6]
-            greenPotionCount = 0
-            redPotionCount = 0
-            bluePotionCount = 0
-            while greenMl >= 100:
-                returnValue["potion_type"] = [0,100,0,0]
-                greenMl -= 100
-                greenPotionCount += 1
-            while redMl >= 100:
-                returnValue["potion_type"] = [100,0,0,0]
-                redMl -= 100
-                redPotionCount += 1
-            while blueMl >= 100:
-                returnValue["potion_type"] = [0,0,100,0]
-                blueMl -= 100
-                bluePotionCount += 1  
+        inventory = connection.execute(sqlalchemy.text("""
+                                                     SELECT
+                                                        green_ml,
+                                                        blue_ml,
+                                                        red_ml,
+                                                        dark_ml,
+                                                        gold,
+                                                        potion_count,
+                                                        potion_capacity
+                                                        FROM global_inventory""")).one()
+        
+        ml_inventory = [inventory.red_ml, inventory.green_ml, inventory.blue_ml, inventory.dark_ml]
+        potion_count = inventory.potion_count
+        potion_capacity = inventory.potion_capacity
+        bottler_plan = []
 
-            if greenPotionCount != 0:
-                returnValue["quantity"] = greenPotionCount
-            elif redPotionCount != 0:
-                returnValue["quantity"] = redPotionCount
-            elif bluePotionCount != 0:
-                returnValue["quantity"] = bluePotionCount
-            else:
-                return [] 
+        potion_types = connection.execute(sqlalchemy.text("SELECT * FROM potion_types"))
+        for row in potion_types:
+            current_potion_type = [row.red_ml, row.green_ml, row.blue_ml, row.dark_ml]
+            create_potion = True
+            for i in range(len(ml_inventory)):
+                if ml_inventory[i] < current_potion_type[i]:
+                    create_potion = False
+                    break
+            if potion_count+1 > potion_capacity:
+                create_potion = False
+            if create_potion:
+                for i in range(len(ml_inventory)):
+                    ml_inventory[i] = ml_inventory[i] - current_potion_type[i]
 
-    return [
-            returnValue
-        ]
+                bottler_plan.append({
+                    "potion_type": current_potion_type,
+                    "quantity": 1
+                })
+                potion_capacity +=1
+        
+    return bottler_plan
 
 if __name__ == "__main__":
     print(get_bottle_plan())
