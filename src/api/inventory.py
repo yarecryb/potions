@@ -18,11 +18,19 @@ def get_inventory():
     mlinbarrels = 0
     gold = 0
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        for row in result:
-            numpotions += row[0] + row[3] + row[5]
-            mlinbarrels += row[1] + row[4] + row[6]
-            gold += row[2]
+        result = connection.execute(sqlalchemy.text("""
+                                                     SELECT
+                                                        potion_count,
+                                                        gold,
+                                                        red_ml,
+                                                        green_ml,
+                                                        blue_ml,
+                                                        dark_ml
+                                                        FROM global_inventory""")).one()
+        numpotions = result.potion_count
+        gold = result.gold
+        mlinbarrels = result.red_ml + result.green_ml + result.blue_ml + result.dark_ml
+        
     return {"number_of_potions": numpotions, "ml_in_barrels": mlinbarrels, "gold": gold}
 
 # Gets called once a day
