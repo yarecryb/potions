@@ -32,8 +32,23 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
                         """
                         UPDATE potion_types SET quantity = quantity + :quantity
                         WHERE sku = :potion_sku
-                        """), 
+                        """),
                 [{"quantity": potion_bottled.quantity, "potion_sku": sku}])
+                connection.execute(
+                    sqlalchemy.text(
+                        """
+                        UPDATE global_inventory SET
+                        red_ml = red_ml - :red_ml,
+                        green_ml = green_ml - :green_ml,
+                        blue_ml = blue_ml - :blue_ml,
+                        dark_ml = dark_ml - :dark_ml,
+                        potion_count = potion_count + :quantity
+                        """),
+                [{"red_ml": row.red_ml,
+                  "green_ml": row.green_ml,
+                  "blue_ml": row.blue_ml,
+                  "dark_ml": row.dark_ml,
+                  "quantity": potion_bottled.quantity}])
                 
     return "OK"
 

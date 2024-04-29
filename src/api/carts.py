@@ -180,9 +180,10 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             connection.execute(sqlalchemy.text(
                 """
                 UPDATE global_inventory
-                SET gold = gold + :gold_paid
+                SET gold = gold + :gold_paid,
+                potion_count = potion_count - :quantity
                 """
-            ), {"gold_paid": gold_paid})
+            ), {"gold_paid": gold_paid, "quantity": quantity})
 
             total_potions_bought += quantity
             
