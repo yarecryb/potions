@@ -49,5 +49,30 @@ def reset():
         connection.execute(query, {
             "empty": 0
         })
+
+        connection.execute(
+            sqlalchemy.text(
+            """
+            DELETE FROM ledger
+            """))
+
+        connection.execute(
+            sqlalchemy.text(
+            """
+            DELETE FROM ledger_transactions
+            """))
+        connection.execute(
+            sqlalchemy.text(
+            """
+            DELETE FROM cart_items
+            """))
+        
+        connection.execute(
+            sqlalchemy.text(
+            """
+            DELETE FROM carts
+            """))
+        
+            
     return "OK"
 

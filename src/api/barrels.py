@@ -30,6 +30,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
         blue_ml = 0
         green_ml = 0
         dark_ml = 0
+        barrels_bought = ""
 
         for barrel_delivered in barrels_delivered:
             gold_paid += barrel_delivered.price * barrel_delivered.quantity
@@ -42,7 +43,8 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
             elif barrel_delivered.potion_type == [0,0,0,1]:
                 dark_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
             else:
-                raise Exception("Invalid potion type")
+                raise Exception("Invalid barrel type")
+            barrels_bought += barrel_delivered.sku
 
         connection.execute(
             sqlalchemy.text(
@@ -55,6 +57,26 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
                 gold = gold - :gold_paid
                 """),
             [{"red_ml": red_ml, "green_ml": green_ml, "blue_ml": blue_ml, "dark_ml": dark_ml, "gold_paid": gold_paid}])
+        
+        ledger_transaction_value = "Barrels delivered: " + barrels_bought + " Gold change: -" + str(gold_paid) + " RedMl change: " + str(red_ml) + " BlueMl change: " + str(blue_ml) + " GreenMl change: " + str(green_ml) + " DarkMl change: " + str(dark_ml)
+        inventory_id = connection.execute(
+            sqlalchemy.text(
+                """
+                INSERT INTO ledger_transactions (description) 
+                VALUES (:value)
+                RETURNING id
+                """),
+            [{"value": ledger_transaction_value}])
+        
+        connection.execute(
+            sqlalchemy.text(
+                """
+                INSERT INTO ledger (inventory_id, gold_change, red_ml_change, blue_ml_change, green_ml_change, dark_ml_change, potion_count_change)
+                VALUES
+                (:inventory_id, :gold_change, :red_ml, :blue_ml, :green_ml, :dark_ml, 0)
+                """
+            ),
+        [{"inventory_id": inventory_id.fetchone()[0], "red_ml": red_ml, "green_ml": green_ml, "blue_ml": blue_ml, "dark_ml": dark_ml, "gold_change": gold_paid}])
         
     return "OK"
 

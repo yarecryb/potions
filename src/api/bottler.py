@@ -50,6 +50,26 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
                   "dark_ml": row.dark_ml,
                   "quantity": potion_bottled.quantity}])
                 
+                ledger_transaction_value = "Potion bottled: " + sku + " RedMl change: -" + str(row.red_ml) + " BlueMl change: -" + str(row.blue_ml) + " GreenMl change: -" + str(row.green_ml) + " DarkMl change: -" + str(row.dark_ml)
+                inventory_id = connection.execute(
+                    sqlalchemy.text(
+                        """
+                        INSERT INTO ledger_transactions (description) 
+                        VALUES (:value)
+                        RETURNING id
+                        """),
+                    [{"value": ledger_transaction_value}])
+                
+                connection.execute(
+                    sqlalchemy.text(
+                        """
+                        INSERT INTO ledger (inventory_id, gold_change, red_ml_change, blue_ml_change, green_ml_change, dark_ml_change, potion_count_change)
+                        VALUES
+                        (:inventory_id, 0, :red_ml, :blue_ml, :green_ml, :dark_ml, :potion_count_change)
+                        """
+                    ),
+                [{"inventory_id": inventory_id.fetchone()[0], "red_ml": -row.red_ml, "green_ml": -row.green_ml, "blue_ml": -row.blue_ml, "dark_ml": -row.dark_ml, "potion_count_change": potion_bottled.quantity}])
+                
     return "OK"
 
 @router.post("/plan")

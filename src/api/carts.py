@@ -187,5 +187,24 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
             total_potions_bought += quantity
             
-                
+            ledger_transaction_value = "Potions bought: " + item_sku + " Quantity: " + str(quantity) +  " Gold change: " + str(gold_paid)
+            inventory_id = connection.execute(
+                sqlalchemy.text(
+                    """
+                    INSERT INTO ledger_transactions (description) 
+                    VALUES (:value)
+                    RETURNING id
+                    """),
+                [{"value": ledger_transaction_value}])
+            
+            connection.execute(
+                sqlalchemy.text(
+                    """
+                    INSERT INTO ledger (inventory_id, gold_change, potion_count_change)
+                    VALUES
+                    (:inventory_id, :gold_change, :potion_count_change)
+                    """
+                ),
+            [{"inventory_id": inventory_id.fetchone()[0], "gold_change": gold_paid, "potion_count_change": -quantity}])
+                    
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
