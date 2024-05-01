@@ -111,15 +111,23 @@ def get_bottle_plan():
                     break
             if potion_count+1 > potion_capacity:
                 create_potion = False
+                break
             if create_potion:
-                for i in range(len(ml_inventory)):
-                    ml_inventory[i] = ml_inventory[i] - current_potion_type[i]
+                quantity = 0
+                make_potion = True
+                while quantity <= 3 and make_potion:
+                    for i in range(len(ml_inventory)):
+                        ml_inventory[i] = ml_inventory[i] - current_potion_type[i]
+                        if ml_inventory[i] < 0:
+                            make_potion = False
+                    if make_potion != False:
+                        quantity += 1
 
                 bottler_plan.append({
                     "potion_type": current_potion_type,
-                    "quantity": 1
+                    "quantity": quantity
                 })
-                potion_capacity +=1
+                potion_count +=quantity
         
     return bottler_plan
 
