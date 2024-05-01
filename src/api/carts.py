@@ -55,19 +55,44 @@ def search_orders(
     time is 5 total line items.
     """
 
-    return {
-        "previous": "",
-        "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
-    }
+    """
+        Idea:
+        search page token should be a reference to what page to go onto
+        Get first 5 cart_items, for now assume every item added to cart_items gets checked out
+        Mutliple page token by 5 to get what item you want (in regards to index of items)
+        
+    """
+    
+   
+    stmt = sqlalchemy.select(
+        db.cart_items
+    )
+    with db.engine.connect() as conn:
+        result = conn.execute(stmt)
+        json = []
+        for row in result:
+            json.append(
+                {
+                    "line_item_id": row.id,
+                    "item_sku": row.item_sku,
+                    "customer_name": row
+                }
+            )
+
+    return json
+    # return {
+    #     "previous": "",
+    #     "next": "",
+    #     "results": [
+    #         {
+    #             "line_item_id": 1,
+    #             "item_sku": "1 oblivion potion",
+    #             "customer_name": "Scaramouche",
+    #             "line_item_total": 50,
+    #             "timestamp": "2021-01-01T00:00:00Z",
+    #         }
+    #     ],
+    # }
 
 
 class Customer(BaseModel):
@@ -97,7 +122,7 @@ def create_cart(new_cart: Customer):
             RETURNING id
             """), [{"customer_name": new_cart.customer_name, "character_class": new_cart.character_class, "level": new_cart.level}])
 
-    return {"cart_id": str(cart_id.fetchone()[0])}
+    return {"cart_id": cart_id.fetchone()[0]}
 
 
 class CartItem(BaseModel):
