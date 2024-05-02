@@ -55,13 +55,7 @@ def search_orders(
     time is 5 total line items.
     """
 
-    """
-        Idea:
-        search page token should be a reference to what page to go onto
-        Get first 5 cart_items, for now assume every item added to cart_items gets checked out
-        Mutliple page token by 5 to get what item you want (in regards to index of items)
-        
-    """
+
     
    
     stmt = sqlalchemy.select(
