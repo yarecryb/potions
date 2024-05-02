@@ -92,9 +92,13 @@ def search_orders(
             stmt = stmt.order_by(sqlalchemy.desc(sort_col))
 
         result = conn.execute(stmt)
-        json = []
+        json = {
+            "previous": "", 
+            "next": "", 
+            "results": []
+        }
         for row in result:
-            json.append(
+            json["results"].append(
                 {
                     "line_item_id": row.id,
                     "item_sku": row.item_sku,
