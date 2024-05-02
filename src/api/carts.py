@@ -61,7 +61,7 @@ def search_orders(
         metadata_obj = sqlalchemy.MetaData()
         cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=conn)
         carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=conn)
-
+        potion_types = sqlalchemy.Table("potion_types", metadata_obj, autoload_with=conn)
 
         stmt = (
             sqlalchemy.select(
@@ -69,6 +69,7 @@ def search_orders(
                 cart_items.c.item_sku,
                 cart_items.c.quantity,
                 cart_items.c.timestamp,
+                cart_items.c.price,
                 carts.c.customer_name
             ).select_from(
                 join(
@@ -101,9 +102,9 @@ def search_orders(
             json["results"].append(
                 {
                     "line_item_id": row.id,
-                    "item_sku": row.item_sku,
+                    "item_sku": str(row.quantity) + " " + row.item_sku,
                     "customer_name": row.customer_name,
-                    "line_item_total": row.quantity,
+                    "line_item_total": row.price,
                     "timestamp": row.timestamp
                 }
             )
@@ -222,6 +223,14 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
             gold_paid = quantity * price
             total_gold_paid += gold_paid
+
+            connection.execute(sqlalchemy.text(
+                """
+                UPDATE cart_items
+                SET price = :price
+                WHERE cart_id = :cart_id AND item_sku = :item_sku
+                """
+            ), {"price": gold_paid, "cart_id": cart_id, "item_sku": item_sku})
 
             connection.execute(sqlalchemy.text(
                 """
