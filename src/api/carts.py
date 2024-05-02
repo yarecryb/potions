@@ -185,14 +185,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
             connection.execute(sqlalchemy.text(
                 """
-                UPDATE cart_items
-                SET quantity = 0
-                WHERE cart_id = :cart_id AND item_sku = :item_sku
-                """
-            ), {"cart_id": cart_id, "item_sku": item_sku})
-
-            connection.execute(sqlalchemy.text(
-                """
                 UPDATE potion_types
                 SET quantity = quantity - :quantity
                 WHERE sku = :item_sku
