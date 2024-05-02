@@ -86,7 +86,11 @@ def search_orders(
         if potion_sku != "":
             stmt = stmt.where(cart_items.c.item_sku.ilike(f"%{potion_sku}%"))
         
-        
+        if sort_col == "line_item_total":
+            sort_col = "price"
+        elif sort_col == "item_sku":
+            sort_col = "quantity"
+            
         if sort_order == "asc":
             stmt = stmt.order_by(sqlalchemy.asc(sort_col))
         elif sort_order== "desc":
