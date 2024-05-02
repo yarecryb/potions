@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
 import sqlalchemy
+from sqlalchemy import select, join
 from src import database as db
 
 router = APIRouter(
@@ -54,14 +55,42 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
-
-
-    
    
-    stmt = sqlalchemy.select(
-        db.cart_items
-    )
+
     with db.engine.connect() as conn:
+        metadata_obj = sqlalchemy.MetaData()
+        cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=conn)
+        carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=conn)
+
+
+        stmt = (
+            sqlalchemy.select(
+                cart_items.c.id,
+                cart_items.c.item_sku,
+                cart_items.c.quantity,
+                cart_items.c.timestamp,
+                carts.c.customer_name
+            ).select_from(
+                join(
+                    cart_items,
+                    carts,
+                    cart_items.c.cart_id == carts.c.id
+                )
+            )
+        )
+        
+        if customer_name != "":
+            stmt = stmt.where(carts.c.customer_name.ilike(f"%{customer_name}%"))
+        
+        if potion_sku != "":
+            stmt = stmt.where(cart_items.c.item_sku.ilike(f"%{potion_sku}%"))
+        
+        
+        if sort_order == "asc":
+            stmt = stmt.order_by(sqlalchemy.asc(sort_col))
+        elif sort_order== "desc":
+            stmt = stmt.order_by(sqlalchemy.desc(sort_col))
+
         result = conn.execute(stmt)
         json = []
         for row in result:
@@ -69,7 +98,9 @@ def search_orders(
                 {
                     "line_item_id": row.id,
                     "item_sku": row.item_sku,
-                    "customer_name": row
+                    "customer_name": row.customer_name,
+                    "line_item_total": row.quantity,
+                    "timestamp": row.timestamp
                 }
             )
 
