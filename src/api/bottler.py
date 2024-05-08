@@ -44,10 +44,10 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
                         dark_ml = dark_ml - :dark_ml,
                         potion_count = potion_count + :quantity
                         """),
-                [{"red_ml": row.red_ml,
-                  "green_ml": row.green_ml,
-                  "blue_ml": row.blue_ml,
-                  "dark_ml": row.dark_ml,
+                [{"red_ml": row.red_ml * potion_bottled.quantity,
+                  "green_ml": row.green_ml * potion_bottled.quantity,
+                  "blue_ml": row.blue_ml * potion_bottled.quantity,
+                  "dark_ml": row.dark_ml * potion_bottled.quantity,
                   "quantity": potion_bottled.quantity}])
                 
                 ledger_transaction_value = "Potion bottled: " + sku + " RedMl change: -" + str(row.red_ml) + " BlueMl change: -" + str(row.blue_ml) + " GreenMl change: -" + str(row.green_ml) + " DarkMl change: -" + str(row.dark_ml)
